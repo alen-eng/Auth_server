@@ -14,7 +14,7 @@ const mongoClient= require('mongodb').MongoClient
 
 const PORT=process.env.PORT || 3000
 
-const db=require("./index")
+const db=require("./connect")
 
 db.connect((err)=>{
     if(err)
