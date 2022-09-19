@@ -114,7 +114,9 @@ authRouter.post("/parentcheck", async(req,res)=>{
  const parent= await db.get().collection(collection.CHILD_COLLECTION).findOne({parent:phone});
  const child= await db.get().collection(collection.CHILD_COLLECTION).findOne({child:phone});
  if(parent){
-     return res.status(200).json({msg:"PARENT",child:parent.child,location:parent.location,battery:parent.battery})
+    console.log(parent.location['locality'])
+    let batt = parent.battery.toString();
+     return res.status(200).json({msg:"PARENT",child:parent.child,location:parent.location['locality'],battery:batt})
  }
  else if(child){
      return res.status(200).json({msg:"CHILD",parent:child.parent})
