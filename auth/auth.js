@@ -2,7 +2,7 @@ const express =require("express")
 const bcrypt=require("bcryptjs")
 const webtoken=require("jsonwebtoken")
 const collection = require("../model/user")
-const db =require("../index")
+const db =require("../connect")
 const authRouter=express.Router()
 var ObjectID=require('mongodb').ObjectId
 

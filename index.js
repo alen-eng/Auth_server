@@ -35,7 +35,9 @@ app.get('/', (req, res) => {
  app.use(authRouter)
 // //
 
-
+server.listen(PORT,()=>{
+    console.log(`connected to PORT : ${PORT}`)
+})
 //(DB).then(()=>{
 //     console.log("connection created")
 // }).catch((e)=>{
@@ -93,7 +95,3 @@ app.get('/', (req, res) => {
 //       io.emit("/datachange",users)
 
 //   })
-
-server.listen(PORT,()=>{
-    console.log(`connected to PORT : ${PORT}`)
-})
