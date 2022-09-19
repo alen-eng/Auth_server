@@ -14,6 +14,15 @@ const mongoClient= require('mongodb').MongoClient
 
 const PORT=process.env.PORT || 3000
 
+const db=require("./index")
+
+db.connect((err)=>{
+    if(err)
+      console.log('Database not connected!!'+err);
+    else
+    console.log('Database connected successfully!!');
+  })
+
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/index.html');
   });
