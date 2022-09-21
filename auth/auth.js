@@ -120,7 +120,7 @@ authRouter.post("/parentcheck", async(req,res)=>{
         let batt = parent.battery.toString();
      return res.status(200).json({msg:"PARENT",child:parent.child,location:parent.location['locality'],battery:batt,operator:parent.operator})}
      else
-      return res.status(200).json({msg:"PARENT",child:parent.child,location:"Nil",battery:"Nil"})
+      return res.status(200).json({msg:"PARENT",child:parent.child,location:"Nil",battery:"Nil",operator:"Nil"})
  }
  else if(child){
      return res.status(200).json({msg:"CHILD",parent:child.parent})
