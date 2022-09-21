@@ -118,7 +118,7 @@ authRouter.post("/parentcheck", async(req,res)=>{
   //  let batt = parent.battery.toString();
     if(parent.location['locality']!=null && parent.battery!=null){
         let batt = parent.battery.toString();
-     return res.status(200).json({msg:"PARENT",child:parent.child,location:parent.location['locality'],battery:batt})}
+     return res.status(200).json({msg:"PARENT",child:parent.child,location:parent.location['locality'],battery:batt,operator:parent.operator})}
      else
       return res.status(200).json({msg:"PARENT",child:parent.child,location:"Nil",battery:"Nil"})
  }
@@ -134,6 +134,7 @@ authRouter.post("/loc_update", async(req,res)=>{
 location=req.body.location
 user=req.body.user
 battery=req.body.battery
+operator=req.body.operator
 var obj=JSON.parse(user)
 var child=obj.phone
 var obj=await db.get().collection(collection.CHILD_COLLECTION).updateOne(
@@ -141,7 +142,8 @@ var obj=await db.get().collection(collection.CHILD_COLLECTION).updateOne(
     {
         $set:{
             location:location,
-            battery:battery
+            battery:battery,
+            operator:operator
         }
     }
     );
