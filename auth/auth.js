@@ -1,171 +1,243 @@
 const express =require("express")
 const bcrypt=require("bcryptjs")
-const webtoken=require("jsonwebtoken")
+const Redis = require("ioredis");
+const jwt=require("jsonwebtoken")
 const collection = require("../model/user")
-const db =require("../connect")
+const db =require("../connect");
+var ObjectID=require('mongodb').ObjectId
 const authRouter=express.Router()
 var ObjectID=require('mongodb').ObjectId
 
 authRouter.post("/signup",async(req,res)=>{
-
-    console.log("authenticating")
-
-        //try{
-            const {phone,password}=req.body
-            console.log(phone)
-            const existingUser= await db.get().collection(collection.USER_COLLECTION).findOne({phone:phone})
+   
+console.log(req.body)
+            const {firstname,lastname,email,password}=req.body
+            console.log(firstname)
+            const existingUser= await db.get().collection(collection.USER_COLLECTION).findOne({email:email})
             
             if(existingUser){
-                return res.status(400).json({msg:"Phone number Already Exists"})
+                return res.status(400).json({msg:"Email already exists"})
             }
-        
-            const hashedpassword=bcrypt.hashSync(password,8)
-            
-            // let user=new User({
-            //     phone,
-            //     password:hashedpassword,
-            console.log("Checking..")
-            db.get().collection(collection.USER_COLLECTION).insertOne({phone:phone,password:hashedpassword}).then((response)=>{
-                return res.status(200).json(response)
+const hashedpassword=bcrypt.hashSync(password,8)
+
+            db.get().collection(collection.USER_COLLECTION).insertOne({Firstname:firstname,Lastname:lastname,Email:email,Password:hashedpassword}).then((response)=>{
+                return res.status(200).json({status:200 , msg:"User Registered Successfully"})
             })
             
-        //     user= await user.save()
-        //    return res.status(200).json(user)
-      //   }catch(e){
-         //       return res.status(500).json({error:e.message})
-     //    }
 })
-//)
 
 authRouter.post("/signin",async(req,res)=>{
-        
-      console.log("trying to sign in")
-        
-        const {phone,password}=req.body;
+    const client = new Redis(String(process.env.REDIS_URL));
+        const {email,password}=req.body;
 
-        const existinguser= await db.get().collection(collection.USER_COLLECTION).findOne({phone:phone});
-        console.log(existinguser)
+        const existinguser= await db.get().collection(collection.USER_COLLECTION).findOne({Email:email});
+        
         if(existinguser==null){
-            return res.status(400).json({msg:"Invalid Phone"})
+            return res.status(400).json({status:400,msg:"Email not registered yet!!"})
         }
-
-        const isCorrect=await bcrypt.compare(password, existinguser.password)
-        
+  
+        const isCorrect=await bcrypt.compare(password, existinguser.Password)
         
         if(isCorrect==false){
             // console.log("incorrect password")
-            return res.status(400).json({msg:"Incorrect password"})
+            return res.status(403).json({status:403,msg:"Incorrect password"})
         }
-
-        const token=webtoken.sign({id:existinguser._id},"webtokenkey")
-        
-        var user=existinguser._doc
-        return res.status(200).json({token:token,phone:existinguser['phone']})
-    // }catch(e){
-    //    return res.status(500).json({error:e.message})
-    // }
-              
+      else {
+        const accesstoken=jwt.sign({email:existinguser.Email},"accessecrete",{expiresIn:"2m"})
+        const refreshtoken=jwt.sign({email:existinguser.Email},"refreshsecrete",{expiresIn:"30d"})
+         
+        const id=String(existinguser._id)
+        client.set(id,JSON.stringify({refreshtoken:refreshtoken}),'EX',60*60*24*30,);
+        return res.status(200).json(
+            {status:200,name:existinguser['Firstname'],User:existinguser._id,accesstoken:accesstoken}
+            )
+    
+      }        
 })
 
-authRouter.post("/tokengen",async(req,res)=>{
-console.log("Token generation..")
-const{token,phone}=req.body;
+authRouter.post("/refresh",async(req,res)=>{
+const client = new Redis(String(process.env.REDIS_URL));
+const{user}=req.body;
 
-const existinguser= await db.get().collection(collection.USER_COLLECTION).findOne({phone:phone});
-console.log(existinguser)
-const parentoken=webtoken.sign({id:existinguser._id},"webtokenkey")
-
-//db.get().collection(collection.USER_COLLECTION).insertOne({token:parentoken})
-db.get().collection(collection.USER_COLLECTION).updateOne({phone:phone},
-    {
-
-       $set:{
-          token:parentoken
-             }
-
-   })
-.then((response)=>{
-    return res.status(200).json(parentoken)
-})
-
-})
-authRouter.post("/entertoken", async(req,res)=>{
-   // console.log(user.phone);
-console.log("Enter token");
-//const {token,user}=req.body
-token=req.body.actual
-user=req.body.user
-var obj=JSON.parse(user)
-var phone=obj.phone
-const existinguser= await db.get().collection(collection.USER_COLLECTION).findOne({token:token});
-console.log(existinguser)
+const existinguser= await db.get().collection(collection.USER_COLLECTION).findOne({_id:ObjectID(user)});
+const googleuser= await db.get().collection(collection.GOOGLE_COLLECTION).findOne({_id:ObjectID(user)});
+const githubuser= await db.get().collection(collection.GITHUB_COLLECTION).findOne({_id:ObjectID(user)});
+if(!existinguser && !googleuser && !githubuser){
+    return res.status(400).json({status:400,msg:"User not found"})
+}
 if(existinguser){
-    await db.get().collection(collection.CHILD_COLLECTION).insertOne({child:phone,parent:existinguser['phone'],location:"",battery:""});
-    return res.status(200).json({token:token,phone:existinguser['phone']})
+    client.get(existinguser._id).then((result) => { 
+              if(result!=null && result!=undefined){
+                const accesstoken=jwt.sign({email:existinguser.Email},"accessecrete",{expiresIn:"2m"})
+                return res.status(200).json({status:200,accesstoken:accesstoken})
+              }
+              else return res.status(402).json({status:402,msg:"Please login again"})
 }
-else if(existinguser==null){
-    return res.status(400).json({msg:"Invalid Token"})
-}
-})
-
-authRouter.post("/parentcheck", async(req,res)=>{
- console.log("parent..");
- var phone=req.body.phone
- const parent= await db.get().collection(collection.CHILD_COLLECTION).findOne({parent:phone});
- const child= await db.get().collection(collection.CHILD_COLLECTION).findOne({child:phone});
- if(parent){
-   // console.log(parent.location['locality'])
-  //  let batt = parent.battery.toString();
-    if(parent.location['locality']!=null && parent.battery!=null){
-        let batt = parent.battery.toString();
-     return res.status(200).json({msg:"PARENT",child:parent.child,location:parent.location['locality'],state:parent.location['administrativeArea'],battery:batt,operator:parent.operator})}
-     else
-      return res.status(200).json({msg:"PARENT",child:parent.child,location:"Nil",state:"Nil",battery:"Nil",operator:"Nil"})
- }
- else if(child){
-     return res.status(200).json({msg:"CHILD",parent:child.parent})
- }
- else if(parent==null && child==null){
-    return res.status(200).json({msg:"NOT"})
-}
- })
-authRouter.post("/loc_update", async(req,res)=>{
-    console.log("Location..update..")
-location=req.body.location
-user=req.body.user
-battery=req.body.battery
-operator=req.body.operator
-var obj=JSON.parse(user)
-var child=obj.phone
-var obj=await db.get().collection(collection.CHILD_COLLECTION).updateOne(
-    {child:child},
-    {
-        $set:{
-            location:location,
-            battery:battery,
-            operator:operator
+)}
+else if(googleuser){
+    client.get(googleuser._id).then((result) => { 
+        if(result!=null && result!=undefined){
+          const accesstoken=jwt.sign({email:googleuser.Email},"accessecrete",{expiresIn:"2m"})
+          return res.status(200).json({status:200,accesstoken:accesstoken})
         }
-    }
-    );
-if(obj){
-    return res.status(200).json({msg:"Success"})
+        else return res.status(402).json({status:402,msg:"Please login again"})
 }
-    else if(obj==null){
-        return res.status(400).json({msg:"Error"})
+)}
+else if(githubuser){
+    client.get(githubuser._id).then((result) => {
+        if(result!=null && result!=undefined){
+          const accesstoken=jwt.sign({email:githubuser.Email},"accessecrete",{expiresIn:"2m"})
+          return res.status(200).json({status:200,accesstoken:accesstoken})
+        }
+        else return res.status(402).json({status:402,msg:"Please login again"})
+    })
+
+} })
+
+authRouter.post("/type",async(req,res)=>{
+    const{usertype,value,user}=req.body;
+    
+    const existinguser= await db.get().collection(collection.USER_COLLECTION).findOne({_id:ObjectID(user)});
+    const googleuser= await db.get().collection(collection.GOOGLE_COLLECTION).findOne({_id:ObjectID(user)});
+    const githubuser= await db.get().collection(collection.GITHUB_COLLECTION).findOne({_id:ObjectID(user)});
+    if(!existinguser && !googleuser && !githubuser){
+        return res.status(400).json({status:400,msg:"User not found"})
     }
+    if(existinguser){
+        db.get().collection(collection.USER_COLLECTION).updateOne({_id:ObjectID(user)},{
+            $set:{
+                type:usertype,
+                typeName: value,
+            }
+            })           
+    }
+    else if(googleuser){
+        db.get().collection(collection.GOOGLE_COLLECTION).updateOne({_id:ObjectID(user)},{
+            $set:{
+                type:usertype,
+                typeName: value,
+            }
+            })
+    }
+    else if(githubuser){
+        db.get().collection(collection.GITHUB_COLLECTION).updateOne({_id:ObjectID(user)},{
+            $set:{
+                type:usertype,
+                typeName: value,
+            }
+            })
+    }
+    return res.status(200).json({status:200,msg:"User type updated"})
+    
+    })
 
-})
+    authRouter.post("/host",async(req,res)=>{
+        const{hostingtype,user}=req.body;
+        const existinguser= await db.get().collection(collection.USER_COLLECTION).findOne({_id:ObjectID(user)});
+        const googleuser= await db.get().collection(collection.GOOGLE_COLLECTION).findOne({_id:ObjectID(user)});
+        const githubuser= await db.get().collection(collection.GITHUB_COLLECTION).findOne({_id:ObjectID(user)});
 
-authRouter.post("/loc_fetch", async (req,res)=>{
-    console.log("Location...fetch...")
-    user=req.body.user
-var obj=JSON.parse(user)
-var parentph=obj.phone
-const location= await db.get().collection(collection.CHILD_COLLECTION).findOne({parent:parentph});
-if(location){
-return location}
-else if(location==null){
-    return "Error";
-}
-})
+        if(!existinguser && !googleuser && !githubuser){
+            return res.status(400).json({status:400,msg:"User not found"})
+        }
+        if(existinguser){
+            db.get().collection(collection.USER_COLLECTION).updateOne({_id:ObjectID(user)},{
+                $set:{
+                    HostType:hostingtype,
+                }
+                })           
+        }
+        else if(googleuser){
+            db.get().collection(collection.GOOGLE_COLLECTION).updateOne({_id:ObjectID(user)},{
+                $set:{
+                    HostType:hostingtype,
+                }
+                })
+        }
+        return res.status(200).json({status:200,msg:"Host type updated"})
+        
+        })
+
+        authRouter.post("/option",async(req,res)=>{
+            const{hostingOption,repo,user}=req.body;
+            const existinguser= await db.get().collection(collection.USER_COLLECTION).findOne({_id:ObjectID(user)});
+            const googleuser= await db.get().collection(collection.GOOGLE_COLLECTION).findOne({_id:ObjectID(user)});
+            const githubuser= await db.get().collection(collection.GITHUB_COLLECTION).findOne({_id:ObjectID(user)});
+
+            if(!existinguser && !googleuser && !githubuser){
+                return res.status(400).json({status:400,msg:"User not found"})
+            }
+            if(existinguser){
+                db.get().collection(collection.USER_COLLECTION).updateOne({_id:ObjectID(user)},{
+                    $set:{
+                        HostOption:hostingOption,
+                        RepoLink:repo
+                    }
+                    })           
+            }
+            else if(googleuser){
+                db.get().collection(collection.GOOGLE_COLLECTION).updateOne({_id:ObjectID(user)},{
+                    $set:{
+                        HostOption:hostingOption,
+                        GitLink:repo
+                    }
+                    })
+            }
+            return res.status(200).json({status:200,msg:"Git link updated"})
+            
+            });
+
+
+
+    authRouter.post("/auth/google",async(req,res)=>{
+            const client = new Redis(String(process.env.REDIS_URL));
+        const {name,email}=req.body;
+ console.log(name,email)
+        const existinguser= await db.get().collection(collection.GOOGLE_COLLECTION).findOne({Email:email});
+        
+        if(existinguser==null){
+            db.get().collection(collection.GOOGLE_COLLECTION).insertOne({Fullname:name,Email:email});
+            const user = await db.get().collection(collection.GOOGLE_COLLECTION).findOne({Email:email});
+                const id=String(user._id)
+                const accesstoken=await jwt.sign({email:user.Email},"accessecrete",{expiresIn:"2m"})
+                const refreshtoken= await jwt.sign({email:user.Email},"refreshsecrete",{expiresIn:"30d"})
+                client.set(id,JSON.stringify({refreshtoken:refreshtoken}),);
+                return res.status(202).json({status:200,name:user['Fullname'],User:user._id,accesstoken:accesstoken})
+        
+        }
+      else {
+        const accesstoken=jwt.sign({email:existinguser.Email},"accessecrete",{expiresIn:"2m"})
+
+        return res.status(200).json(
+            {status:200,name:existinguser['Fullname'],User:existinguser._id,accesstoken:accesstoken}
+            )
+        }
+      });
+
+      authRouter.post("/auth/github",async(req,res)=>{
+        const client = new Redis(String(process.env.REDIS_URL));
+    const {name,email}=req.body;
+console.log(name,email)
+    const existinguser= await db.get().collection(collection.GITHUB_COLLECTION).findOne({Email:email});
+    
+    if(existinguser==null){
+        db.get().collection(collection.GITHUB_COLLECTION).insertOne({Fullname:name,Email:email});
+        const user = await db.get().collection(collection.GITHUB_COLLECTION).findOne({Email:email});
+            const id=String(user._id)
+            const accesstoken=await jwt.sign({email:user.Email},"accessecrete",{expiresIn:"2m"})
+            const refreshtoken= await jwt.sign({email:user.Email},"refreshsecrete",{expiresIn:"30d"})
+            client.set(id,JSON.stringify({refreshtoken:refreshtoken}),);
+            return res.status(202).json({status:200,name:user['Fullname'],User:user._id,accesstoken:accesstoken})
+    
+    }
+  else {
+    const accesstoken=jwt.sign({email:existinguser.Email},"accessecrete",{expiresIn:"2m"})
+
+    return res.status(200).json(
+        {status:200,name:existinguser['Fullname'],User:existinguser._id,accesstoken:accesstoken}
+        )
+    }
+  });
+       
+
 module.exports=authRouter
