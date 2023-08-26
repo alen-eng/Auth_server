@@ -23,11 +23,7 @@ app.get('/', (req, res) => {
   });
 
  app.use(express.json())
-app.use(
-  cors({
-    origin: 'https://xero-codee-three.vercel.app',
-  })
-)
+ app.use(cors())
 
  app.set("io", io)
  app.use(authRouter)
