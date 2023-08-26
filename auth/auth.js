@@ -8,6 +8,12 @@ var ObjectID=require('mongodb').ObjectId
 const authRouter=express.Router()
 var ObjectID=require('mongodb').ObjectId
 
+var cors = require('cors')
+var corsOptions = {
+  origin: 'https://xero-codee-three.vercel.app',
+  optionsSuccessStatus: 200 
+}
+
 authRouter.post("/signup",async(req,res)=>{
    
 console.log(req.body)
@@ -26,7 +32,7 @@ const hashedpassword=bcrypt.hashSync(password,8)
             
 })
 
-authRouter.post("/signin",async(req,res)=>{
+authRouter.post("/signin",cors(corsOptions),async(req,res)=>{
     const client = new Redis(String(process.env.REDIS_URL));
         const {email,password}=req.body;
 
