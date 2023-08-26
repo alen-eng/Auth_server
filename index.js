@@ -24,7 +24,8 @@ app.get('/', (req, res) => {
 
  app.use(express.json())
  app.use(cors({
-  origin: 'https://xero-codee-three.vercel.app/'
+  'origin': 'https://xero-codee-three.vercel.app/',
+     'methods': 'GET,POST,DELETE',
 }));
 
  app.set("io", io)
