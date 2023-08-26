@@ -23,10 +23,21 @@ app.get('/', (req, res) => {
   });
 
  app.use(express.json())
- app.use(cors({
-  'origin': 'https://xero-codee-three.vercel.app/',
-     'methods': 'GET,POST,DELETE',
-}));
+app.use(
+  cors({
+    origin: true,
+    optionsSuccessStatus: 200,
+    credentials: true,
+  })
+);
+app.options(
+  '*',
+  cors({
+    origin: true,
+    optionsSuccessStatus: 200,
+    credentials: true,
+  })
+);
 
  app.set("io", io)
  app.use(authRouter)
