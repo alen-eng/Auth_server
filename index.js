@@ -8,7 +8,7 @@ const app =express()
 const server=http.createServer(app)
 const io=require('socket.io')(server)
 const db=require("./connect")
-const PORT=process.env.PORT || 3200
+const PORT=process.env.PORT || 80
 
 
 db.connect((err)=>{
