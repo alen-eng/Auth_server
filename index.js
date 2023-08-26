@@ -26,6 +26,14 @@ app.get('/', (req, res) => {
  app.use(cors({
   origin: '*'
 }));
+
+app.options('*', (req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+});
+app.use((req, res) => {
+  res.set('Access-Control-Allow-Origin', '*');
+});
+
  app.set("io", io)
  app.use(authRouter)
 
