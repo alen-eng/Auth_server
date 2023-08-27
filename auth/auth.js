@@ -201,7 +201,7 @@ authRouter.post("/type",async(req,res)=>{
                 const id=String(user._id)
                 const accesstoken=await jwt.sign({email:user.Email},"accessecrete",{expiresIn:"2m"})
                 const refreshtoken= await jwt.sign({email:user.Email},"refreshsecrete",{expiresIn:"30d"})
-                client.set(id,JSON.stringify({refreshtoken:refreshtoken}),);
+                client.set(id,JSON.stringify({refreshtoken:refreshtoken}),'EX',60*60*24*30,);
                 return res.status(202).json({status:200,name:user['Fullname'],User:user._id,accesstoken:accesstoken})
         
         }
@@ -226,7 +226,7 @@ console.log(name,email)
             const id=String(user._id)
             const accesstoken=await jwt.sign({email:user.Email},"accessecrete",{expiresIn:"2m"})
             const refreshtoken= await jwt.sign({email:user.Email},"refreshsecrete",{expiresIn:"30d"})
-            client.set(id,JSON.stringify({refreshtoken:refreshtoken}),);
+            client.set(id,JSON.stringify({refreshtoken:refreshtoken}),'EX',60*60*24*30,);
             return res.status(202).json({status:200,name:user['Fullname'],User:user._id,accesstoken:accesstoken})
     
     }
